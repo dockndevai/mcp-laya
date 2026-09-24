@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-09-24
+
+### Fixed
+- Added the `mcp-name` marker to the README so the MCP Registry can verify PyPI package ownership
+  (the registry validates ownership of a PyPI package via a line in its published README). No code
+  changes from 0.1.0.
+
 ## [0.1.0] - 2026-09-24
 
 ### Added

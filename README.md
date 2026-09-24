@@ -1,5 +1,7 @@
 # mcp-laya
 
+<!-- mcp-name: io.github.dockndevai/mcp-laya -->
+
 [![PyPI](https://img.shields.io/pypi/v/mcp-laya)](https://pypi.org/project/mcp-laya/)
 [![CI](https://github.com/dockndevai/mcp-laya/actions/workflows/ci.yml/badge.svg)](https://github.com/dockndevai/mcp-laya/actions/workflows/ci.yml)
 [![licence](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)

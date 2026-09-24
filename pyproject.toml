@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-laya"
-version = "0.1.0"
+version = "0.1.1"
 description = "Safe-by-default MCP server for Laya — fast, local, non-autoregressive typed decisions (classify / score / yes-no) for AI agents, in 100+ languages."
 readme = "README.md"
 requires-python = ">=3.10"
