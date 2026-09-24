@@ -1,0 +1,53 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.dockndevai/mcp-laya",
+  "description": "Safe-by-default MCP for Laya: fast, local, typed decisions (classify/score/yes-no), 100+ langs.",
+  "repository": {
+    "url": "https://github.com/dockndevai/mcp-laya",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "mcp-laya",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "LAYA_DEFAULT_MODEL",
+          "description": "Checkpoint to use: auto (Router picks) | english | multilingual | typed-decisions.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "LAYA_MODELS",
+          "description": "Comma-separated allowlist of checkpoints that may load. Empty = all.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "LAYA_ALLOW_DOWNLOAD",
+          "description": "Allow the one-time Hugging Face checkpoint download. Off by default (offline).",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "LAYA_MIN_CONFIDENCE",
+          "description": "Flag answers below this calibrated confidence (0 = never flag).",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "LAYA_DEVICE",
+          "description": "Inference device: auto | cpu | cuda.",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
