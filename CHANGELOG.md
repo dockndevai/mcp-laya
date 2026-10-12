@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-10-12
+
+### Changed
+- Raised the `setuptools` build-system minimum from `>=61.0` to `>=83.0.0` to pick up the fix for
+  PYSEC-2026-3447 (a `MANIFEST.in` Unicode-normalization bypass in `sdist` builds on macOS
+  APFS/HFS+), flagged by `pip-audit` against the resolved dev environment. No runtime dependency
+  changes; `mcp` and `laya` constraints are unchanged and resolve to current, non-vulnerable
+  versions.
+
 ## [0.1.1] - 2026-09-24
 
 ### Fixed
