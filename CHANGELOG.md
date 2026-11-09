@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-11-09
+
+### Changed
+- Raised the `setuptools` build-system minimum from `>=83.0.0` to `>=84.1.0` to pick up the fix for
+  [GHSA-xmj3-9gf7-h52w](https://osv.dev/vulnerability/GHSA-xmj3-9gf7-h52w) (a Windows-only wheel
+  install path that could write a fixed-content `__init__.py` outside the destination directory via
+  attacker-controlled `namespace_packages.txt` metadata).
+- Raised the `mcp` dependency minimum from `>=2.0.0` to `>=2.2.0` to pick up fixes for four advisories
+  affecting `mcp` 2.0.0–2.1.1: unbounded Streamable HTTP session memory growth
+  ([GHSA-84m7-p3x7-pcfv](https://osv.dev/vulnerability/GHSA-84m7-p3x7-pcfv)), cross-origin redirect
+  following that could leak client credentials
+  ([GHSA-5h93-6whr-6q8j](https://osv.dev/vulnerability/GHSA-5h93-6whr-6q8j)), missing token-audience
+  validation ([GHSA-w4fh-qvv9-3v23](https://osv.dev/vulnerability/GHSA-w4fh-qvv9-3v23)), and SSRF via
+  unresolved `$ref`s in tool output-schema validation
+  ([GHSA-rwrf-2pqf-9j8j](https://osv.dev/vulnerability/GHSA-rwrf-2pqf-9j8j)). mcp-laya runs a stdio
+  server only (no Streamable HTTP, no outbound client calls to other MCP servers), so none of these
+  apply to how it is used here; the bump is routine dependency hygiene so the floor cannot resolve to
+  a vulnerable `mcp`. `laya` constraint is unchanged. No source changes.
+
 ## [0.1.2] - 2026-10-12
 
 ### Changed
