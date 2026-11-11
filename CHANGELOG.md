@@ -4,6 +4,42 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-11-11
+
+Hardening release from an audit of the server against the suite's approval/audit review (mcp-core
+issue #1). mcp-laya has no mutating tools and no confirmation path, so the approval changes made in
+the other servers do not apply here; these are the gaps the audit found in its own guardrails.
+
+### Security
+- **Offline mode could be bypassed by the environment.** With `LAYA_ALLOW_DOWNLOAD=false` the server
+  only *defaulted* `HF_HUB_OFFLINE`/`TRANSFORMERS_OFFLINE` to `1`, so an inherited `HF_HUB_OFFLINE=0`
+  (or `TRANSFORMERS_OFFLINE=0`) left Hugging Face access enabled. They are now set to `1`
+  unconditionally when downloads are disallowed. Left untouched when `LAYA_ALLOW_DOWNLOAD=true`.
+- **The size cap only covered `state`.** `LAYA_MAX_INPUT_CHARS` is now also applied to the serialized
+  questions (instructions, criteria, labels, levels). Previously a 50 MB `instructions` string passed
+  the policy check.
+- **Refused requests were not audited.** Policy refusals (disallowed model, empty/oversized state,
+  oversized questions, too many questions, unknown preset, `classify` without labels, `score` with
+  fewer than two levels) now write an audit line with `outcome: "rejected"` and a length-bounded
+  `reason`. Question ids and the model name in the audit line are truncated.
+
+### Changed
+- All 8 tools are advertised with the MCP `readOnlyHint: true` annotation. (The opt-in checkpoint
+  download, `LAYA_ALLOW_DOWNLOAD`, still writes to the local Hugging Face cache; it is a
+  process-level setting, not something a tool call triggers.)
+- `triage` now validates the preset name and the policy (model allowlist, state size) **before**
+  importing `laya`/`torch`, so a refused request no longer pays for loading them. Consequence: the
+  audit line for `triage` lists no question ids, because the preset's questions are produced by the
+  library after the policy check; the preset is identifiable from the `tool` field (`triage:<preset>`).
+- Every audit line gains an `outcome` field (`allowed` for accepted calls).
+
+### Added
+- Tests: `tests/test_hardening.py` (a regression test for each fix) and `tests/test_server.py`, which
+  imports the real server in-process and asserts the exact tool list, the `readOnlyHint` annotation
+  on every tool, and that the package version, `pyproject.toml` and `server.json` agree.
+- CI now installs the `mcp` SDK (but still not `torch`/`laya`) so `server.py` is imported, linted,
+  type-checked against the real SDK and tested on Python 3.10-3.13.
+
 ## [0.1.3] - 2026-11-09
 
 ### Changed

@@ -1,9 +1,10 @@
 """Thin wrapper over the `laya` library.
 
 laya (and its torch/transformers stack) is imported lazily so the MCP server can start, advertise its
-tools, and run the pure policy tests without loading a model. When LAYA_ALLOW_DOWNLOAD is false we set
-the Hugging Face offline switches *before* importing laya, so a missing checkpoint fails fast with a
-clear message instead of silently reaching out to the network.
+tools, and run the pure policy tests without loading a model. When LAYA_ALLOW_DOWNLOAD is false we force
+the Hugging Face offline switches on *before* importing laya (overriding any value already in the
+environment), so a missing checkpoint fails fast with a clear message instead of silently reaching out
+to the network.
 """
 from __future__ import annotations
 
@@ -31,9 +32,10 @@ class LayaEngine:
         if self._laya is not None:
             return self._laya
         if not self.config.allow_download:
-            # Must be set before transformers / huggingface_hub are imported by laya.
-            os.environ.setdefault("HF_HUB_OFFLINE", "1")
-            os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+            # Must be set before transformers / huggingface_hub are imported by laya. Assigned, not
+            # setdefault: an inherited HF_HUB_OFFLINE=0 must not defeat LAYA_ALLOW_DOWNLOAD=false.
+            os.environ["HF_HUB_OFFLINE"] = "1"
+            os.environ["TRANSFORMERS_OFFLINE"] = "1"
         try:
             import laya
         except Exception as e:  # pragma: no cover - import-time env issue
@@ -98,7 +100,14 @@ class LayaEngine:
             pass
         return result
 
+    @staticmethod
+    def validate_preset(preset: str) -> None:
+        """Reject an unknown preset name without importing laya (and therefore torch)."""
+        if preset not in PRESETS:
+            raise EngineError(f"Unknown preset '{preset[:64]}'. Available: {', '.join(PRESETS)}.")
+
     def preset_questions(self, preset: str, categories: dict[str, str] | None = None) -> dict[str, Any]:
+        self.validate_preset(preset)
         laya = self._import_laya()
         table = {
             "triage": laya.triage_questions,
@@ -106,8 +115,6 @@ class LayaEngine:
             "moderation": laya.moderation_questions,
             "guard": laya.guard_questions,
         }
-        if preset not in table:
-            raise EngineError(f"Unknown preset '{preset}'. Available: {', '.join(PRESETS)}.")
         if preset == "email" and categories:
             return laya.email_questions(categories)
         return table[preset]()
