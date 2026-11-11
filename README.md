@@ -77,9 +77,10 @@ laya is read-only inference, so the guardrails (in [`src/mcp_laya/security.py`](
 
 - **Offline by default** — the model runs locally; nothing is sent anywhere. The one exception, the first-time checkpoint download, is disabled unless `LAYA_ALLOW_DOWNLOAD=true`.
 - **Model allowlist** — `LAYA_MODELS` pins which checkpoints may load.
-- **Input caps** — `LAYA_MAX_INPUT_CHARS` / `LAYA_MAX_QUESTIONS` bound each request.
+- **Input caps** — `LAYA_MAX_INPUT_CHARS` bounds the state and, separately, the serialized questions; `LAYA_MAX_QUESTIONS` bounds their number.
 - **Confidence honesty** — `LAYA_MIN_CONFIDENCE` flags (never silently trusts) low-confidence answers; every answer already carries a calibrated `confidence`.
-- **Log privacy** — `LAYA_REDACT_STATE` keeps the input text out of the JSON audit log by default.
+- **Log privacy** — `LAYA_REDACT_STATE` keeps the input text out of the JSON audit log by default. Refused requests are audited too (`outcome: "rejected"`).
+- **Read-only annotations** — every tool is advertised with `readOnlyHint: true`.
 
 There's a bundled skill, [`laya-decisions`](.claude/skills/laya-decisions/SKILL.md), teaching an agent when to offload a decision to laya and how to phrase typed questions. See also [SECURITY.md](SECURITY.md).
 

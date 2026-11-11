@@ -2,14 +2,15 @@
 
 laya is read-only inference, so this engine does not gate mutations; it enforces the things that
 actually matter for a local decision model: the model allowlist, request-size caps, confidence
-honesty, and keeping the input text out of logs.
+honesty, and keeping the input text out of logs. Every request is audited, including the ones it
+refuses.
 """
 from __future__ import annotations
 
 import json
 import sys
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, NoReturn
 
 from .config import Config
 
@@ -53,26 +54,69 @@ class SecurityPolicy:
         except (TypeError, ValueError):
             return len(str(state))
 
+    @staticmethod
+    def _questions_len(questions: dict[str, Any] | None) -> int:
+        """Serialized size of the questions (their instructions, criteria and labels)."""
+        if not questions:
+            return 0
+        return SecurityPolicy._state_len(questions)
+
+    def reject(
+        self,
+        tool: str,
+        state: Any,
+        reason: str,
+        *,
+        model: str | None = None,
+        questions: dict[str, Any] | None = None,
+    ) -> NoReturn:
+        """Audit a refused request, then raise PolicyError(reason)."""
+        self.audit(
+            tool,
+            model=model,
+            state_chars=self._state_len(state),
+            questions=list((questions or {}).keys()),
+            outcome="rejected",
+            reason=reason,
+        )
+        raise PolicyError(reason)
+
     def guard(
         self, tool: str, state: Any, questions: dict[str, Any] | None, model: str | None
     ) -> GuardResult:
-        resolved = self.resolve_model(model)
+        try:
+            resolved = self.resolve_model(model)
+        except PolicyError as e:
+            self.reject(tool, state, str(e), model=model, questions=questions)
 
         n = self._state_len(state)
         if n == 0:
-            raise PolicyError("Empty state — provide the text/JSON to evaluate.")
+            self.reject(tool, state, "Empty state — provide the text/JSON to evaluate.",
+                        model=resolved, questions=questions)
         if n > self.config.max_input_chars:
-            raise PolicyError(
+            self.reject(
+                tool, state,
                 f"State is {n} chars, over the LAYA_MAX_INPUT_CHARS limit of "
-                f"{self.config.max_input_chars}."
+                f"{self.config.max_input_chars}.",
+                model=resolved, questions=questions,
             )
         if questions is not None:
             if not questions:
-                raise PolicyError("No questions provided.")
+                self.reject(tool, state, "No questions provided.", model=resolved)
             if len(questions) > self.config.max_questions:
-                raise PolicyError(
+                self.reject(
+                    tool, state,
                     f"{len(questions)} questions, over the LAYA_MAX_QUESTIONS limit of "
-                    f"{self.config.max_questions}."
+                    f"{self.config.max_questions}.",
+                    model=resolved, questions=questions,
+                )
+            qn = self._questions_len(questions)
+            if qn > self.config.max_input_chars:
+                self.reject(
+                    tool, state,
+                    f"Questions are {qn} chars serialized, over the LAYA_MAX_INPUT_CHARS limit of "
+                    f"{self.config.max_input_chars}.",
+                    model=resolved, questions=questions,
                 )
 
         self.audit(tool, model=resolved, state_chars=n, questions=list((questions or {}).keys()))
@@ -93,15 +137,29 @@ class SecurityPolicy:
         return answers
 
     # --- audit -------------------------------------------------------------
-    def audit(self, tool: str, *, model: str | None, state_chars: int, questions: list[str]) -> None:
+    def audit(
+        self,
+        tool: str,
+        *,
+        model: str | None,
+        state_chars: int,
+        questions: list[str],
+        outcome: str = "allowed",
+        reason: str | None = None,
+    ) -> None:
         if not self.config.audit_log:
             return
-        line = {
+        line: dict[str, Any] = {
             "audit": "laya-mcp",
             "tool": tool,
-            "model": model or "auto",
+            "outcome": outcome,
+            "model": (model or "auto")[:64],
             "state_chars": state_chars,
-            "questions": questions,
+            # Bound the line: a refused request may carry arbitrarily many / arbitrarily long ids.
+            "questions": [str(q)[:64] for q in questions[: self.config.max_questions]],
             "state_redacted": self.config.redact_state,
         }
+        if reason is not None:
+            # The policy message may echo caller-supplied values (a model name); bound its size.
+            line["reason"] = reason[:300]
         sys.stderr.write(json.dumps(line) + "\n")

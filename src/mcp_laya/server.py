@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any, NoReturn
 
 from mcp.server.mcpserver import MCPServer
+from mcp.types import ToolAnnotations
 
 from .config import load_config
 from .engine import EngineError, LayaEngine
@@ -21,6 +22,11 @@ _engine = LayaEngine(_config)
 
 mcp = MCPServer("laya")
 
+# Every tool only reads a state and returns a decision. (The opt-in first-run checkpoint download,
+# LAYA_ALLOW_DOWNLOAD, writes to the local Hugging Face cache; that is a process-level setting,
+# off by default, not something a tool call can trigger on its own.)
+READ_ONLY = ToolAnnotations(read_only_hint=True)
+
 State = str | dict[str, Any]
 
 
@@ -31,7 +37,7 @@ def _fail(e: Exception) -> NoReturn:
     raise e
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def decide(state: State, questions: dict[str, dict[str, Any]], model: str | None = None) -> dict[str, Any]:
     """Answer several typed questions about a state in one local forward pass.
 
@@ -56,7 +62,7 @@ def decide(state: State, questions: dict[str, dict[str, Any]], model: str | None
         _fail(e)
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def classify(
     state: State,
     labels: list[str] | None = None,
@@ -72,7 +78,7 @@ def classify(
     """
     try:
         if not criteria and not labels:
-            raise PolicyError("Provide either `labels` or `criteria`.")
+            _policy.reject("classify", state, "Provide either `labels` or `criteria`.", model=model)
         crit = criteria or {label: label for label in (labels or [])}
         q = {
             "result": {
@@ -88,7 +94,7 @@ def classify(
         _fail(e)
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def score(
     state: State,
     instructions: str,
@@ -102,7 +108,7 @@ def score(
     """
     try:
         if len(levels) < 2:
-            raise PolicyError("Provide at least two ordered `levels`.")
+            _policy.reject("score", state, "Provide at least two ordered `levels`.", model=model)
         q = {"result": {"type": "score", "instructions": instructions, "criteria": levels}}
         g = _policy.guard("score", state, q, model)
         answers = _policy.annotate_confidence(_engine.decide(state, q, g.model).get("answers", {}))
@@ -111,7 +117,7 @@ def score(
         _fail(e)
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def check(state: State, instructions: str, model: str | None = None) -> dict[str, Any]:
     """Answer a single yes/no/unknown question about a state (a `noul` gate).
 
@@ -132,7 +138,7 @@ def check(state: State, instructions: str, model: str | None = None) -> dict[str
         _fail(e)
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def triage(state: State, preset: str = "triage", model: str | None = None) -> dict[str, Any]:
     """Run a ready-made set of decisions over a state using a laya preset.
 
@@ -140,8 +146,14 @@ def triage(state: State, preset: str = "triage", model: str | None = None) -> di
     (prompt-injection / policy gates). Returns all answers with confidence.
     """
     try:
+        # Validate everything we can BEFORE importing laya/torch: the preset name, then the policy
+        # (model allowlist, state size). The preset's questions come from the library, not the caller.
+        try:
+            _engine.validate_preset(preset)
+        except EngineError as e:
+            _policy.reject("triage", state, str(e), model=model)
+        g = _policy.guard(f"triage:{preset}", state, None, model)
         questions = _engine.preset_questions(preset)
-        g = _policy.guard(f"triage:{preset}", state, questions, model)
         result = _engine.decide(state, questions, g.model)
         result["answers"] = _policy.annotate_confidence(result.get("answers", {}))
         return result
@@ -149,7 +161,7 @@ def triage(state: State, preset: str = "triage", model: str | None = None) -> di
         _fail(e)
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def detect_language(text: str) -> dict[str, Any]:
     """Detect the script and language of a text (sub-millisecond, no model forward pass)."""
     try:
@@ -159,7 +171,7 @@ def detect_language(text: str) -> dict[str, Any]:
         _fail(e)
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def explain_routing(state: State, questions: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Explain which checkpoint the Router would use for this state, without running inference."""
     try:
@@ -169,7 +181,7 @@ def explain_routing(state: State, questions: dict[str, dict[str, Any]]) -> dict[
         _fail(e)
 
 
-@mcp.tool()
+@mcp.tool(annotations=READ_ONLY)
 def list_models() -> dict[str, Any]:
     """List the laya checkpoints this server may use, the default, device and offline status."""
     return _engine.list_models()
