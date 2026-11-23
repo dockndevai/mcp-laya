@@ -1,3 +1,3 @@
 """mcp-laya — a safe-by-default MCP server for the Laya decision engine."""
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"

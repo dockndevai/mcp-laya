@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-11-23
+
+### Fixed
+- Release workflow: install the `mcp` runtime dependency before running the tests. The job installs the
+  package with `--no-deps`, and unlike `ci.yml` it never installed `mcp`, so test collection failed and
+  0.1.4 was never published. 0.1.5 ships the 0.1.4 changes below.
+
 ## [0.1.4] - 2026-11-11
 
 Hardening release from an audit of the server against the suite's approval/audit review (mcp-core
