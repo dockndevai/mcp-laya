@@ -26,7 +26,7 @@ jobs:
       - name: Lint, type-check, test
         run: |
           python -m pip install --upgrade pip
-          pip install ruff mypy pytest build
+          pip install ruff mypy pytest build "mcp>=2.2.0"
           pip install -e . --no-deps
           ruff check src tests
           mypy src
